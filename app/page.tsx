@@ -31,11 +31,12 @@ function Toast({ msg }: { msg: string }) {
     <div style={{
       position:"fixed", bottom:"90px", left:"50%",
       transform:"translateX(-50%)",
-      background:"var(--surface2)", border:"1px solid var(--accent3)",
+      background:"var(--surface)", border:"1px solid var(--accent3)",
       color:"var(--accent3)", padding:"10px 22px", borderRadius:"30px",
       fontSize:"13px", letterSpacing:"0.06em", zIndex:100,
       animation:"fadeUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
       whiteSpace:"nowrap",
+      boxShadow:"0 4px 16px rgba(43,34,30,0.1)",
     }}>{msg}</div>
   );
 }
@@ -62,23 +63,23 @@ function TimerButton() {
     fontSize:"12px", letterSpacing:"0.06em",
     borderRadius:"30px", cursor:"pointer",
     padding:"9px 16px", transition:"all 0.25s",
-    boxShadow:"0 4px 20px rgba(0,0,0,0.3)",
+    boxShadow:"0 2px 12px rgba(43,34,30,0.12)",
   };
 
   if (done) return (
-    <button onClick={reset} style={{ ...base, background:"rgba(122,232,160,0.2)", border:"1px solid var(--good)", color:"var(--good)" }}>
+    <button onClick={reset} style={{ ...base, background:"var(--surface)", border:"1px solid var(--good)", color:"var(--good)" }}>
       ✓ 30分経ちました
     </button>
   );
 
   if (seconds !== null) return (
-    <button onClick={reset} style={{ ...base, background:"rgba(165,152,232,0.2)", border:"1px solid var(--accent2)", color:"var(--accent2)" }}>
+    <button onClick={reset} style={{ ...base, background:"var(--accent1)", border:"1px solid var(--accent1)", color:"#fff" }}>
       ⏱ {String(mins).padStart(2,"0")}:{String(secs).padStart(2,"0")}
     </button>
   );
 
   return (
-    <button onClick={start} style={{ ...base, background:"var(--surface2)", border:"1px solid var(--border)", color:"var(--text-muted)" }}>
+    <button onClick={start} style={{ ...base, background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text-muted)" }}>
       ⏱ 30分待つ
     </button>
   );
@@ -131,11 +132,11 @@ function Section({ num, icon, title, hint, delay, children }: {
       <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"12px" }}>
         <div style={{
           width:"26px", height:"26px", borderRadius:"50%",
-          background:"var(--surface2)", border:"1px solid var(--border)",
+          background:"var(--surface)", border:"1px solid var(--border)",
           display:"flex", alignItems:"center", justifyContent:"center",
-          fontSize:"11px", color:"var(--text-muted)", flexShrink:0,
+          fontSize:"11px", color:"var(--accent1)", fontWeight:500, flexShrink:0,
         }}>{num}</div>
-        <span style={{ fontSize:"13px", fontWeight:500, letterSpacing:"0.08em" }}>{icon} {title}</span>
+        <span style={{ fontSize:"13px", fontWeight:500, letterSpacing:"0.08em", color:"var(--text)" }}>{icon} {title}</span>
         <span style={{ fontSize:"11px", color:"var(--text-muted)", marginLeft:"auto" }}>{hint}</span>
       </div>
       {children}
@@ -153,7 +154,7 @@ function FieldRow({ icon, label, val }: { icon: string; label: string; val: stri
       }}>{icon}</div>
       <div>
         <div style={{ fontSize:"10px", color:"var(--text-muted)", letterSpacing:"0.06em", marginBottom:"2px" }}>{label}</div>
-        <div style={{ fontSize:"13px", fontWeight:300, lineHeight:1.6 }}>{val}</div>
+        <div style={{ fontSize:"13px", fontWeight:300, lineHeight:1.6, color:"var(--text)" }}>{val}</div>
       </div>
     </div>
   );
@@ -167,8 +168,8 @@ function RecordCard({ record: r, index, onDelete }: { record: JournalRecord; ind
 
   const modeInfo = {
     standard:   { label:"🌿 通常記録",       bg:"var(--surface2)" },
-    suspicion:  { label:"🔍 疑いダイアリー", bg:"rgba(165,152,232,0.15)" },
-    two_column: { label:"⚖️ 2カラムワーク",  bg:"rgba(152,232,212,0.15)" },
+    suspicion:  { label:"🔍 疑いダイアリー", bg:"rgba(201,97,74,0.1)" },
+    two_column: { label:"⚖️ 2カラムワーク",  bg:"rgba(77,128,104,0.1)" },
   }[entryType] ?? { label:"🌿 通常記録", bg:"var(--surface2)" };
 
   function renderContent() {
@@ -195,7 +196,7 @@ function RecordCard({ record: r, index, onDelete }: { record: JournalRecord; ind
               <div>
                 <div style={{ fontSize:"10px", color:"var(--text-muted)", letterSpacing:"0.06em", marginBottom:"4px" }}>他の可能性</div>
                 {alts.map((alt, i) => (
-                  <div key={i} style={{ fontSize:"13px", fontWeight:300, lineHeight:1.6 }}>・{alt}</div>
+                  <div key={i} style={{ fontSize:"13px", fontWeight:300, lineHeight:1.6, color:"var(--text)" }}>・{alt}</div>
                 ))}
               </div>
             </div>
@@ -216,7 +217,7 @@ function RecordCard({ record: r, index, onDelete }: { record: JournalRecord; ind
             <div>
               <div style={{ fontSize:"10px", color:"var(--text-muted)", letterSpacing:"0.06em", marginBottom:"4px" }}>できたこと</div>
               {acc.map((a, i) => (
-                <div key={i} style={{ fontSize:"13px", fontWeight:300, lineHeight:1.6 }}>・{a}</div>
+                <div key={i} style={{ fontSize:"13px", fontWeight:300, lineHeight:1.6, color:"var(--text)" }}>・{a}</div>
               ))}
             </div>
           </div>
@@ -230,10 +231,11 @@ function RecordCard({ record: r, index, onDelete }: { record: JournalRecord; ind
       background:"var(--surface)", border:"1px solid var(--border)",
       borderRadius:"14px", padding:"18px 20px", marginBottom:"10px",
       animationDelay:`${index*0.04}s`,
+      boxShadow:"0 1px 4px rgba(43,34,30,0.06)",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"12px", flexWrap:"wrap" }}>
         <span style={{ fontSize:"11px", color:"var(--text-muted)" }}>{dateStr}</span>
-        <span style={{ padding:"3px 9px", borderRadius:"10px", fontSize:"10px", background:modeInfo.bg, letterSpacing:"0.04em" }}>{modeInfo.label}</span>
+        <span style={{ padding:"3px 9px", borderRadius:"10px", fontSize:"10px", background:modeInfo.bg, letterSpacing:"0.04em", color:"var(--text-muted)" }}>{modeInfo.label}</span>
         <span style={{ padding:"3px 10px", borderRadius:"10px", fontSize:"11px", background:"var(--surface2)" }}>
           {MOOD_EMOJIS[r.mood-1]} {MOOD_LABELS[r.mood-1]}
         </span>
@@ -357,8 +359,7 @@ export default function HomePage() {
     if (res.ok) {
       if (mode === "standard") {
         setEventText(""); setEmotionText(""); setBodyText("");
-        setMood(5); setActiveTags({}); setAccomplishments(["",""," "]);
-        setAccomplishments(["","",""]);
+        setMood(5); setActiveTags({}); setAccomplishments(["","",""]);
       } else if (mode === "suspicion") {
         setSituation(""); setBodyReaction(""); setThought(""); setActual(""); setSuspMood(5);
       } else {
@@ -384,12 +385,12 @@ export default function HomePage() {
     const tagCount: Record<string, number> = {};
     lowRecs.forEach(r => (r.tags ?? []).forEach(t => { tagCount[t.val] = (tagCount[t.val]||0)+1; }));
     const topTags = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,2);
-    const accDays = records.filter(r => (r.entry_type ?? "standard") === "standard" && (r.extra_data?.accomplishments ?? []).length > 0).length;
+    const accDays  = records.filter(r => (r.entry_type ?? "standard") === "standard" && (r.extra_data?.accomplishments ?? []).length > 0).length;
     const suspDays = records.filter(r => r.entry_type === "suspicion").length;
     const twoCols  = records.filter(r => r.entry_type === "two_column").length;
 
     return (
-      <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"14px", padding:"20px", marginBottom:"12px" }}>
+      <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"14px", padding:"20px", marginBottom:"12px", boxShadow:"0 1px 4px rgba(43,34,30,0.06)" }}>
         <h3 style={{ fontFamily:"'Noto Serif JP',serif", fontSize:"13px", fontWeight:400, color:"var(--accent3)", marginBottom:"14px", letterSpacing:"0.08em" }}>
           ✦ あなたのパターン分析
         </h3>
@@ -417,7 +418,7 @@ export default function HomePage() {
             {suspDays > 0 && (
               <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
                 <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>疑いダイアリー</div>
-                <div style={{ fontSize:"16px", fontWeight:500, color:"var(--accent2)" }}>{suspDays}回</div>
+                <div style={{ fontSize:"16px", fontWeight:500, color:"var(--accent1)" }}>{suspDays}回</div>
               </div>
             )}
             {twoCols > 0 && (
@@ -480,7 +481,7 @@ export default function HomePage() {
 
     if (mode === "suspicion") return (
       <>
-        <div style={{ background:"rgba(165,152,232,0.08)", border:"1px solid rgba(165,152,232,0.2)", borderRadius:"12px", padding:"14px 16px", marginBottom:"24px", fontSize:"12px", color:"var(--text-muted)", lineHeight:1.8 }}>
+        <div style={{ background:"rgba(201,97,74,0.06)", border:"1px solid rgba(201,97,74,0.2)", borderRadius:"12px", padding:"14px 16px", marginBottom:"24px", fontSize:"12px", color:"var(--text-muted)", lineHeight:1.8 }}>
           不安や疑いが湧いたとき、その場でメモしましょう。<br />1〜2週間続けると自分のパターンが見えてきます。
         </div>
         <Section num="1" icon="📍" title="状況" hint="何が起きた？" delay="0s">
@@ -509,7 +510,7 @@ export default function HomePage() {
 
     return (
       <>
-        <div style={{ background:"rgba(152,232,212,0.08)", border:"1px solid rgba(152,232,212,0.2)", borderRadius:"12px", padding:"14px 16px", marginBottom:"24px", fontSize:"12px", color:"var(--text-muted)", lineHeight:1.8 }}>
+        <div style={{ background:"rgba(77,128,104,0.06)", border:"1px solid rgba(77,128,104,0.2)", borderRadius:"12px", padding:"14px 16px", marginBottom:"24px", fontSize:"12px", color:"var(--text-muted)", lineHeight:1.8 }}>
           「事実」と「解釈」を切り分けて書き出しましょう。<br />他の可能性に気づくだけで、不安の強度が下がります。
         </div>
         <Section num="1" icon="📋" title="事実" hint="目に見えたことだけ" delay="0s">
@@ -538,17 +539,9 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ position:"relative", minHeight:"100vh", background:"var(--bg)", color:"var(--text)", overflow:"hidden" }}>
-      <div style={{
-        position:"fixed", inset:0, pointerEvents:"none",
-        background:`
-          radial-gradient(ellipse 60% 40% at 20% 10%, rgba(165,152,232,0.12) 0%, transparent 60%),
-          radial-gradient(ellipse 50% 50% at 80% 80%, rgba(232,165,152,0.10) 0%, transparent 60%),
-          radial-gradient(ellipse 40% 60% at 60% 40%, rgba(152,232,212,0.07) 0%, transparent 60%)
-        `,
-      }} />
-
+    <div style={{ position:"relative", minHeight:"100vh", background:"var(--bg)", color:"var(--text)" }}>
       <div style={{ position:"relative", zIndex:1, maxWidth:"720px", margin:"0 auto", padding:"32px 16px 100px" }}>
+
         {/* ヘッダー */}
         <header className="animate-fade-down" style={{ textAlign:"center", marginBottom:"40px" }}>
           <p style={{ fontSize:"11px", letterSpacing:"0.4em", color:"var(--text-muted)", marginBottom:"10px", fontFamily:"'Noto Serif JP',serif" }}>
@@ -556,8 +549,7 @@ export default function HomePage() {
           </p>
           <h1 style={{
             fontFamily:"'Noto Serif JP',serif", fontSize:"clamp(28px,7vw,40px)", fontWeight:300,
-            background:"linear-gradient(135deg,var(--accent1),var(--accent2),var(--accent3))",
-            WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:"8px",
+            color:"var(--accent1)", marginBottom:"8px",
           }}>こころ日記</h1>
           <p style={{ fontSize:"13px", color:"var(--text-muted)", lineHeight:1.8, fontWeight:300 }}>
             出来事・気持ち・体の状態を書き留めると<br />落ち込みや不安の"きっかけ"が見えてくる
@@ -578,10 +570,11 @@ export default function HomePage() {
           {MODE_TABS.map(tab => (
             <button key={tab.mode} onClick={() => setMode(tab.mode)} style={{
               padding:"12px 8px", borderRadius:"12px", cursor:"pointer", textAlign:"center",
-              border:`1px solid ${mode===tab.mode ? "rgba(165,152,232,0.5)" : "var(--border)"}`,
-              background: mode===tab.mode ? "rgba(165,152,232,0.12)" : "var(--surface)",
-              color: mode===tab.mode ? "var(--accent2)" : "var(--text-muted)",
+              border:`1px solid ${mode===tab.mode ? "var(--accent1)" : "var(--border)"}`,
+              background: mode===tab.mode ? "rgba(201,97,74,0.08)" : "var(--surface)",
+              color: mode===tab.mode ? "var(--accent1)" : "var(--text-muted)",
               fontFamily:"'Zen Kaku Gothic New',sans-serif", transition:"all 0.2s",
+              boxShadow: mode===tab.mode ? "0 1px 4px rgba(43,34,30,0.06)" : "none",
             }}>
               <div style={{ fontSize:"20px", marginBottom:"5px" }}>{tab.icon}</div>
               <div style={{ fontSize:"11px", fontWeight: mode===tab.mode ? 500 : 400, letterSpacing:"0.05em" }}>{tab.label}</div>
@@ -596,11 +589,14 @@ export default function HomePage() {
         {/* 保存ボタン */}
         <button onClick={saveRecord} disabled={saving} style={{
           width:"100%", padding:"16px",
-          background:"linear-gradient(135deg,rgba(165,152,232,0.3),rgba(232,165,152,0.2))",
-          border:"1px solid rgba(165,152,232,0.4)", borderRadius:"12px", color:"var(--text)",
-          fontFamily:"'Zen Kaku Gothic New',sans-serif", fontSize:"14px", fontWeight:500,
-          letterSpacing:"0.12em", cursor: saving ? "not-allowed" : "pointer",
-          opacity: saving ? 0.6 : 1, transition:"all 0.25s", marginBottom:"40px",
+          background: saving ? "var(--surface2)" : "var(--accent1)",
+          border:"none", borderRadius:"12px",
+          color: saving ? "var(--text-muted)" : "#fff",
+          fontFamily:"'Zen Kaku Gothic New',sans-serif",
+          fontSize:"14px", fontWeight:500, letterSpacing:"0.12em",
+          cursor: saving ? "not-allowed" : "pointer",
+          transition:"all 0.25s", marginBottom:"40px",
+          boxShadow: saving ? "none" : "0 2px 8px rgba(201,97,74,0.3)",
         }}>
           {saving ? "保存中…" : "✦ 記録する"}
         </button>
@@ -635,7 +631,7 @@ export default function HomePage() {
           <div style={{ textAlign:"center", padding:"40px", color:"var(--text-muted)", fontSize:"13px" }}>読み込み中…</div>
         ) : records.length === 0 ? (
           <div style={{ textAlign:"center", padding:"40px", color:"var(--text-muted)" }}>
-            <div style={{ fontSize:"36px", marginBottom:"12px", opacity:0.5 }}>🌿</div>
+            <div style={{ fontSize:"36px", marginBottom:"12px", opacity:0.4 }}>🌿</div>
             <p style={{ fontSize:"13px", fontWeight:300, lineHeight:1.8 }}>まだ記録がありません<br />上のフォームから最初の記録を残してみよう</p>
           </div>
         ) : records.map((r, i) => (
@@ -677,13 +673,13 @@ function inputStyle(): React.CSSProperties {
 }
 
 function tagBorderColor(cls: string) {
-  return cls==="good"?"var(--good)":cls==="danger"?"var(--danger)":cls==="warn"?"var(--warn)":"var(--accent2)";
+  return cls==="good"?"var(--good)":cls==="danger"?"var(--danger)":cls==="warn"?"var(--warn)":"var(--accent1)";
 }
 
 function tagBg(cls: string) {
-  return cls==="good"?"rgba(122,232,160,0.12)":cls==="danger"?"rgba(232,122,122,0.12)":cls==="warn"?"rgba(232,208,122,0.12)":"rgba(165,152,232,0.15)";
+  return cls==="good"?"rgba(74,138,102,0.12)":cls==="danger"?"rgba(184,80,80,0.12)":cls==="warn"?"rgba(184,120,48,0.12)":"rgba(201,97,74,0.1)";
 }
 
 function tagTextColor(cls: string) {
-  return cls==="good"?"var(--good)":cls==="danger"?"var(--danger)":cls==="warn"?"var(--warn)":"var(--text)";
+  return cls==="good"?"var(--good)":cls==="danger"?"var(--danger)":cls==="warn"?"var(--warn)":"var(--accent1)";
 }

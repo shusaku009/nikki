@@ -3,18 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0f0e17;
-  --surface: #1a1828;
-  --surface2: #221f35;
-  --border: #2e2b45;
-  --accent1: #e8a598;
-  --accent2: #a598e8;
-  --accent3: #98e8d4;
-  --text: #ede9f5;
-  --text-muted: #8b87a8;
-  --danger: #e87a7a;
-  --good: #7ae8a0;
-  --warn: #e8d07a;
+  /* ベース — 和紙・羊皮紙の温かみ */
+  --bg:         #ede8df;   /* 暖かいパティ：机・背景 */
+  --surface:    #f8f4ee;   /* クリーム紙：カード・入力欄 */
+  --surface2:   #e8e0d4;   /* 少し深い温か色：タグ・バッジ */
+  --border:     #ccc3b5;   /* 温かいタン：区切り線 */
+
+  /* アクセント — 色彩心理学に基づく気分向上カラー */
+  --accent1:    #c9614a;   /* テラコッタ：温かみ・行動意欲 */
+  --accent2:    #7a6652;   /* 温かいアース：安定・信頼 */
+  --accent3:    #4d8068;   /* セージグリーン：自然・成長・希望 */
+
+  /* テキスト */
+  --text:       #2b221e;   /* 温かいダークブラウン */
+  --text-muted: #7a6e65;   /* 温かいグレイブラウン */
+
+  /* ステータス */
+  --danger:     #b85050;   /* ソフトクリムゾン */
+  --good:       #4a8a66;   /* フォレストセージ */
+  --warn:       #b87830;   /* アンバー */
 }
 
 * {
@@ -28,6 +35,11 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+}
+
+::selection {
+  background: rgba(201, 97, 74, 0.18);
+  color: var(--text);
 }
 
 @keyframes fadeDown {
