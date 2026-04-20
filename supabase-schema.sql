@@ -31,3 +31,11 @@ CREATE POLICY "自分のデータのみ挿入" ON records
 
 CREATE POLICY "自分のデータのみ削除" ON records
   FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
+-- マイグレーション: 新機能対応カラム追加
+-- 既存DBに対して実行してください
+-- ============================================
+
+ALTER TABLE records ADD COLUMN IF NOT EXISTS entry_type TEXT DEFAULT 'standard';
+ALTER TABLE records ADD COLUMN IF NOT EXISTS extra_data JSONB DEFAULT '{}'::jsonb;
