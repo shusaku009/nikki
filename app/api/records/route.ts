@@ -27,15 +27,17 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { event, emotion, body_state, mood, tags } = body;
+  const { event, emotion, body_state, mood, tags, entry_type, extra_data } = body;
 
   const { error } = await supabase.from("records").insert({
-    user_id: user.id,
+    user_id:    user.id,
     event:      event      || null,
     emotion:    emotion    || null,
     body_state: body_state || null,
     mood,
-    tags: tags ?? [],
+    tags:       tags       ?? [],
+    entry_type: entry_type ?? 'standard',
+    extra_data: extra_data ?? {},
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -54,7 +56,6 @@ export async function DELETE(req: Request) {
   const id = searchParams.get("id");
 
   if (!id) {
-    // idなし = 全件削除
     const { error } = await supabase
       .from("records")
       .delete()
