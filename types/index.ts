@@ -3,7 +3,7 @@ export type Tag = {
   cls: string;
 };
 
-export type EntryType = 'standard' | 'suspicion' | 'two_column';
+export type EntryType = 'standard' | 'suspicion' | 'two_column' | 'cbt';
 
 export type ExtraData = {
   accomplishments?: string[];
@@ -14,6 +14,11 @@ export type ExtraData = {
   fact?: string;
   interpretation?: string;
   alternatives?: string[];
+  autoThought?: string;
+  emotionTypes?: { name: string; percent: number }[];
+  evidence?: string;
+  altInterpretation?: string;
+  actionPlan?: string;
 };
 
 export type JournalRecord = {

@@ -20,9 +20,32 @@ const TAG_DEFS = [
 
 const MODE_TABS: { mode: EntryType; icon: string; label: string; desc: string }[] = [
   { mode: "standard",   icon: "🌿", label: "通常記録",       desc: "出来事・気持ち・体の状態" },
+  { mode: "cbt",        icon: "🧠", label: "CBT思考記録",    desc: "思考を修正して行動を変える" },
   { mode: "suspicion",  icon: "🔍", label: "疑いダイアリー", desc: "不安の引き金を把握する" },
   { mode: "two_column", icon: "⚖️", label: "2カラムワーク",  desc: "事実と解釈を切り分ける" },
 ];
+
+const CBT_EMOTIONS = ["不安", "悲しみ", "怒り", "嫉妬", "恐れ", "罪悪感", "恥", "孤独感", "焦り", "絶望"];
+
+const NG_WORDS = ["別れよう", "どうせ", "消えたい", "死にたい", "いなくなりたい", "もう無理", "終わりにしたい", "消えてしまいたい"];
+
+const REFLECTION_HINTS = [
+  "それって本当に証拠がある？思い込みかも？",
+  "最悪の場合と最良の場合、どちらが現実的？",
+  "友達が同じ状況だったら、なんて声をかける？",
+  "この考えは事実？それとも自分の解釈？",
+  "1年後も同じように感じていると思う？",
+  "「〜に違いない」は本当に確かめた？",
+];
+
+function detectNgWord(texts: string[]): string | null {
+  for (const text of texts) {
+    for (const w of NG_WORDS) {
+      if (text.includes(w)) return w;
+    }
+  }
+  return null;
+}
 
 // ---- サブコンポーネント ----
 
@@ -160,19 +183,144 @@ function FieldRow({ icon, label, val }: { icon: string; label: string; val: stri
   );
 }
 
+function MoodGraph({ records }: { records: JournalRecord[] }) {
+  const pts = [...records].reverse().slice(-14);
+  if (pts.length < 2) return null;
+  const W = 300, H = 80, PX = 12, PY = 14;
+  const innerW = W - PX * 2;
+  const innerH = H - PY * 2;
+  const xAt = (i: number) => PX + (pts.length > 1 ? i * innerW / (pts.length - 1) : 0);
+  const yAt = (m: number) => PY + innerH * (1 - (m - 1) / 9);
+  const points = pts.map((r, i) => ({ x: xAt(i), y: yAt(r.mood), mood: r.mood }));
+  const polyline = points.map(p => `${p.x},${p.y}`).join(" ");
+
+  return (
+    <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"12px 14px", marginBottom:"10px" }}>
+      <div style={{ fontSize:"10px", color:"var(--text-muted)", letterSpacing:"0.08em", marginBottom:"8px" }}>
+        気分の推移（直近{pts.length}件）
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ overflow:"visible", display:"block" }}>
+        {[3, 5, 7].map(m => (
+          <line key={m} x1={PX} y1={yAt(m)} x2={W - PX} y2={yAt(m)}
+            stroke="var(--border)" strokeWidth="0.5" strokeDasharray="3,3" />
+        ))}
+        <polyline points={polyline} fill="none" stroke="var(--accent1)" strokeWidth="2"
+          strokeLinejoin="round" strokeLinecap="round" />
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="3" fill="var(--accent1)" />
+            {(pts.length <= 8 || i === 0 || i === pts.length - 1) && (
+              <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize="9" fill="var(--text-muted)">
+                {MOOD_EMOJIS[p.mood - 1]}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function EmotionChart({ records }: { records: JournalRecord[] }) {
+  const cbtRecs = records.filter(r => r.entry_type === "cbt");
+  if (cbtRecs.length === 0) return null;
+  const emotionCount: Record<string, number> = {};
+  cbtRecs.forEach(r => {
+    (r.extra_data?.emotionTypes ?? []).forEach(e => {
+      emotionCount[e.name] = (emotionCount[e.name] || 0) + 1;
+    });
+  });
+  const sorted = Object.entries(emotionCount).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (sorted.length === 0) return null;
+  const max = sorted[0][1];
+  return (
+    <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"12px 14px", marginBottom:"10px" }}>
+      <div style={{ fontSize:"10px", color:"var(--text-muted)", letterSpacing:"0.08em", marginBottom:"10px" }}>
+        感情の頻度（CBT記録より）
+      </div>
+      {sorted.map(([name, cnt]) => (
+        <div key={name} style={{ marginBottom:"8px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:"11px", color:"var(--text)", marginBottom:"3px" }}>
+            <span>{name}</span>
+            <span style={{ color:"var(--text-muted)" }}>{cnt}回</span>
+          </div>
+          <div style={{ height:"4px", background:"var(--border)", borderRadius:"2px" }}>
+            <div style={{ height:"4px", background:"var(--accent1)", borderRadius:"2px", width:`${(cnt / max) * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReflectionHint({ text }: { text: string }) {
+  if (text.length < 10) return null;
+  const hint = REFLECTION_HINTS[text.length % REFLECTION_HINTS.length];
+  return (
+    <div style={{
+      background:"rgba(100,80,180,0.07)", border:"1px solid rgba(100,80,180,0.2)",
+      borderRadius:"10px", padding:"10px 14px", marginTop:"8px",
+      display:"flex", gap:"10px", alignItems:"flex-start",
+    }}>
+      <span style={{ fontSize:"14px", flexShrink:0 }}>🤔</span>
+      <div>
+        <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"3px", letterSpacing:"0.06em" }}>自動ツッコミ</div>
+        <div style={{ fontSize:"12px", color:"var(--text)", lineHeight:1.7 }}>{hint}</div>
+      </div>
+    </div>
+  );
+}
+
+function NgWordBanner() {
+  return (
+    <div style={{
+      background:"rgba(184,80,80,0.08)", border:"1px solid var(--danger)",
+      borderRadius:"12px", padding:"14px 16px", marginBottom:"20px",
+    }}>
+      <div style={{ fontSize:"13px", color:"var(--danger)", fontWeight:500, marginBottom:"6px" }}>
+        ⚠ 今、つらい気持ちがありますか？
+      </div>
+      <div style={{ fontSize:"12px", color:"var(--text)", lineHeight:1.9 }}>
+        一人で抱え込まないでください。<br />
+        <strong>よりそいホットライン</strong>:{" "}
+        <a href="tel:0120279338" style={{ color:"var(--accent1)" }}>0120-279-338</a>（24時間・無料）
+      </div>
+    </div>
+  );
+}
+
 function RecordCard({ record: r, index, onDelete }: { record: JournalRecord; index: number; onDelete: (id:string) => void }) {
   const d = new Date(r.created_at);
   const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
   const entryType = r.entry_type ?? "standard";
   const ed: ExtraData = r.extra_data ?? {};
 
-  const modeInfo = {
+  const modeInfo = ({
     standard:   { label:"🌿 通常記録",       bg:"var(--surface2)" },
+    cbt:        { label:"🧠 CBT思考記録",    bg:"rgba(100,80,180,0.1)" },
     suspicion:  { label:"🔍 疑いダイアリー", bg:"rgba(201,97,74,0.1)" },
     two_column: { label:"⚖️ 2カラムワーク",  bg:"rgba(77,128,104,0.1)" },
-  }[entryType] ?? { label:"🌿 通常記録", bg:"var(--surface2)" };
+  } as Record<string, { label:string; bg:string }>)[entryType] ?? { label:"🌿 通常記録", bg:"var(--surface2)" };
 
   function renderContent() {
+    if (entryType === "cbt") {
+      const emoStr = (ed.emotionTypes ?? []).map(e => `${e.name} ${e.percent}%`).join(" / ");
+      return (
+        <div style={{ display:"grid", gap:"8px" }}>
+          {([
+            ["🌿", "出来事",    r.event],
+            ["💭", "自動思考",  ed.autoThought],
+            ["📊", "感情",      emoStr || null],
+            ["🔍", "証拠・事実", ed.evidence],
+            ["🌀", "別の解釈",  ed.altInterpretation],
+            ["🎯", "行動計画",  ed.actionPlan],
+          ] as [string, string, string | null | undefined][])
+            .filter(([,, v]) => v)
+            .map(([icon, label, val]) => <FieldRow key={label} icon={icon} label={label} val={val!} />)}
+        </div>
+      );
+    }
+
     if (entryType === "suspicion") {
       return (
         <div style={{ display:"grid", gap:"8px" }}>
@@ -281,6 +429,15 @@ export default function HomePage() {
   const [alternatives,   setAlternatives]   = useState(["","",""]);
   const [twoMood,        setTwoMood]        = useState(5);
 
+  // cbt
+  const [cbtEvent,       setCbtEvent]       = useState("");
+  const [cbtAutoThought, setCbtAutoThought] = useState("");
+  const [cbtEmotions,    setCbtEmotions]    = useState<{ name: string; percent: number }[]>([]);
+  const [cbtEvidence,    setCbtEvidence]    = useState("");
+  const [cbtAltInterp,   setCbtAltInterp]   = useState("");
+  const [cbtActionPlan,  setCbtActionPlan]  = useState("");
+  const [cbtMood,        setCbtMood]        = useState(5);
+
   // data / ui
   const [records,   setRecords]   = useState<JournalRecord[]>([]);
   const [loading,   setLoading]   = useState(false);
@@ -313,6 +470,17 @@ export default function HomePage() {
     });
   }
 
+  function toggleCbtEmotion(name: string) {
+    setCbtEmotions(prev => {
+      if (prev.find(e => e.name === name)) return prev.filter(e => e.name !== name);
+      return [...prev, { name, percent: 50 }];
+    });
+  }
+
+  function updateCbtEmotionPercent(name: string, percent: number) {
+    setCbtEmotions(prev => prev.map(e => e.name === name ? { ...e, percent } : e));
+  }
+
   async function saveRecord() {
     setSaving(true);
     let body: Record<string, unknown>;
@@ -329,6 +497,21 @@ export default function HomePage() {
         entry_type: "standard", event: eventText||null, emotion: emotionText||null,
         body_state: bodyText||null, mood, tags,
         extra_data: { accomplishments: accomplishments.filter(a => a.trim()) },
+      };
+    } else if (mode === "cbt") {
+      if (!cbtEvent && !cbtAutoThought) {
+        showToast("⚡ 出来事か自動思考を入力してください"); setSaving(false); return;
+      }
+      body = {
+        entry_type: "cbt", event: cbtEvent||null, emotion: null, body_state: null,
+        mood: cbtMood, tags: [],
+        extra_data: {
+          autoThought: cbtAutoThought,
+          emotionTypes: cbtEmotions,
+          evidence: cbtEvidence,
+          altInterpretation: cbtAltInterp,
+          actionPlan: cbtActionPlan,
+        },
       };
     } else if (mode === "suspicion") {
       if (!situation && !thought) {
@@ -360,6 +543,9 @@ export default function HomePage() {
       if (mode === "standard") {
         setEventText(""); setEmotionText(""); setBodyText("");
         setMood(5); setActiveTags({}); setAccomplishments(["","",""]);
+      } else if (mode === "cbt") {
+        setCbtEvent(""); setCbtAutoThought(""); setCbtEmotions([]);
+        setCbtEvidence(""); setCbtAltInterp(""); setCbtActionPlan(""); setCbtMood(5);
       } else if (mode === "suspicion") {
         setSituation(""); setBodyReaction(""); setThought(""); setActual(""); setSuspMood(5);
       } else {
@@ -378,28 +564,36 @@ export default function HomePage() {
     location.href = "/login";
   }
 
+  const allTexts = [eventText, emotionText, bodyText, situation, bodyReaction, thought, actual, fact, interpretation, ...alternatives, cbtEvent, cbtAutoThought, cbtEvidence, cbtAltInterp, cbtActionPlan];
+  const detectedNg = detectNgWord(allTexts);
+
   function renderPattern() {
     if (records.length < 2) return null;
-    const avgMood = records.reduce((s,r) => s + r.mood, 0) / records.length;
+    const avgMood = records.reduce((s, r) => s + r.mood, 0) / records.length;
     const lowRecs = records.filter(r => r.mood <= 4);
     const tagCount: Record<string, number> = {};
     lowRecs.forEach(r => (r.tags ?? []).forEach(t => { tagCount[t.val] = (tagCount[t.val]||0)+1; }));
-    const topTags = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,2);
+    const topTags = Object.entries(tagCount).sort((a, b) => b[1]-a[1]).slice(0, 2);
     const accDays  = records.filter(r => (r.entry_type ?? "standard") === "standard" && (r.extra_data?.accomplishments ?? []).length > 0).length;
     const suspDays = records.filter(r => r.entry_type === "suspicion").length;
     const twoCols  = records.filter(r => r.entry_type === "two_column").length;
+    const cbtDays  = records.filter(r => r.entry_type === "cbt").length;
 
     return (
       <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"14px", padding:"20px", marginBottom:"12px", boxShadow:"0 1px 4px rgba(43,34,30,0.06)" }}>
         <h3 style={{ fontFamily:"'Noto Serif JP',serif", fontSize:"13px", fontWeight:400, color:"var(--accent3)", marginBottom:"14px", letterSpacing:"0.08em" }}>
           ✦ あなたのパターン分析
         </h3>
+
+        <MoodGraph records={records} />
+        <EmotionChart records={records} />
+
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"10px" }}>
           {[
-            { label:"記録数",       val: records.length.toString(),                                            color:"var(--accent2)" },
-            { label:"平均気分",     val: `${MOOD_EMOJIS[Math.round(avgMood)-1]} ${avgMood.toFixed(1)}`,       color: avgMood>=7?"var(--good)":avgMood>=4?"var(--warn)":"var(--danger)" },
-            { label:"気分が低い日", val: lowRecs.length.toString(),                                            color:"var(--danger)" },
-            { label:"気分が良い日", val: records.filter(r=>r.mood>=7).length.toString(),                      color:"var(--good)" },
+            { label:"記録数",       val: records.length.toString(),                                      color:"var(--accent2)" },
+            { label:"平均気分",     val: `${MOOD_EMOJIS[Math.round(avgMood)-1]} ${avgMood.toFixed(1)}`, color: avgMood>=7?"var(--good)":avgMood>=4?"var(--warn)":"var(--danger)" },
+            { label:"気分が低い日", val: lowRecs.length.toString(),                                      color:"var(--danger)" },
+            { label:"気分が良い日", val: records.filter(r => r.mood>=7).length.toString(),              color:"var(--good)" },
           ].map(item => (
             <div key={item.label} style={{ background:"var(--surface2)", borderRadius:"10px", padding:"12px 14px" }}>
               <div style={{ fontSize:"10px", color:"var(--text-muted)", letterSpacing:"0.08em", marginBottom:"4px" }}>{item.label}</div>
@@ -407,12 +601,19 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-        {(accDays > 0 || suspDays > 0 || twoCols > 0) && (
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"8px", marginBottom:"14px" }}>
+
+        {(accDays > 0 || suspDays > 0 || twoCols > 0 || cbtDays > 0) && (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))", gap:"8px", marginBottom:"14px" }}>
             {accDays > 0 && (
               <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
-                <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>できたことを記録</div>
+                <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>できたこと記録</div>
                 <div style={{ fontSize:"16px", fontWeight:500, color:"var(--good)" }}>{accDays}日</div>
+              </div>
+            )}
+            {cbtDays > 0 && (
+              <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
+                <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>CBT思考記録</div>
+                <div style={{ fontSize:"16px", fontWeight:500, color:"rgba(100,80,180,0.9)" }}>{cbtDays}回</div>
               </div>
             )}
             {suspDays > 0 && (
@@ -429,6 +630,7 @@ export default function HomePage() {
             )}
           </div>
         )}
+
         {topTags.length > 0 && (
           <>
             <div style={{ fontSize:"11px", color:"var(--text-muted)", letterSpacing:"0.06em", marginBottom:"8px" }}>
@@ -470,11 +672,74 @@ export default function HomePage() {
           <div style={{ display:"grid", gap:"8px" }}>
             {accomplishments.map((a, i) => (
               <input key={i} value={a}
-                onChange={e => setAccomplishments(prev => prev.map((v,j) => j===i ? e.target.value : v))}
+                onChange={e => setAccomplishments(prev => prev.map((v, j) => j===i ? e.target.value : v))}
                 placeholder={`${i+1}. 例）ちゃんとご飯を作れた、散歩できた…`}
                 style={inputStyle()} />
             ))}
           </div>
+        </Section>
+      </>
+    );
+
+    if (mode === "cbt") return (
+      <>
+        <div style={{ background:"rgba(100,80,180,0.06)", border:"1px solid rgba(100,80,180,0.2)", borderRadius:"12px", padding:"14px 16px", marginBottom:"24px", fontSize:"12px", color:"var(--text-muted)", lineHeight:1.8 }}>
+          つらい出来事があったとき、6ステップで思考パターンを修正しましょう。<br />
+          続けることで「自動思考のクセ」が見えてきます。
+        </div>
+        <Section num="1" icon="🌿" title="出来事" hint="何があった？" delay="0s">
+          <textarea value={cbtEvent} onChange={e => setCbtEvent(e.target.value)}
+            placeholder="例）パートナーから冷たい返信が来た"
+            rows={2} style={textareaStyle()} />
+        </Section>
+        <Section num="2" icon="💭" title="自動思考" hint="頭に浮かんだ考え" delay="0.06s">
+          <textarea value={cbtAutoThought} onChange={e => setCbtAutoThought(e.target.value)}
+            placeholder="例）「嫌われたかも」「もう終わりかも」「自分が悪い」…"
+            rows={2} style={textareaStyle()} />
+          <ReflectionHint text={cbtAutoThought} />
+        </Section>
+        <Section num="3" icon="📊" title="感情と強度" hint="何%感じた？" delay="0.12s">
+          <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"10px" }}>
+            {CBT_EMOTIONS.map(name => {
+              const selected = cbtEmotions.find(e => e.name === name);
+              return (
+                <button key={name} onClick={() => toggleCbtEmotion(name)} style={{
+                  padding:"6px 14px", borderRadius:"20px", fontSize:"12px", cursor:"pointer",
+                  border:`1px solid ${selected ? "var(--accent1)" : "var(--border)"}`,
+                  background: selected ? "rgba(201,97,74,0.1)" : "var(--surface)",
+                  color: selected ? "var(--accent1)" : "var(--text-muted)",
+                  fontFamily:"'Zen Kaku Gothic New',sans-serif", transition:"all 0.2s",
+                }}>
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+          {cbtEmotions.map(e => (
+            <div key={e.name} style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"8px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"10px", padding:"10px 14px" }}>
+              <span style={{ fontSize:"12px", minWidth:"56px", color:"var(--text)" }}>{e.name}</span>
+              <input type="range" min={0} max={100} value={e.percent}
+                onChange={ev => updateCbtEmotionPercent(e.name, parseInt(ev.target.value))}
+                style={{ flex:1, accentColor:"var(--accent1)", height:"4px" }} />
+              <span style={{ fontSize:"12px", color:"var(--accent1)", minWidth:"36px", textAlign:"right" }}>{e.percent}%</span>
+            </div>
+          ))}
+          <MoodSlider mood={cbtMood} setMood={setCbtMood} />
+        </Section>
+        <Section num="4" icon="🔍" title="証拠・事実" hint="この考えを支持する根拠は？反証は？" delay="0.18s">
+          <textarea value={cbtEvidence} onChange={e => setCbtEvidence(e.target.value)}
+            placeholder={"支持：過去にも同じことがあった\n反証：普段は返信してくれる、今日は仕事が忙しいと言っていた"}
+            rows={3} style={textareaStyle()} />
+        </Section>
+        <Section num="5" icon="🌀" title="別の解釈" hint="他にどんな可能性がある？" delay="0.24s">
+          <textarea value={cbtAltInterp} onChange={e => setCbtAltInterp(e.target.value)}
+            placeholder="例）仕事が忙しかっただけ、スマホが手元になかった…"
+            rows={2} style={textareaStyle()} />
+        </Section>
+        <Section num="6" icon="🎯" title="行動計画" hint="この後どう動く？" delay="0.30s">
+          <textarea value={cbtActionPlan} onChange={e => setCbtActionPlan(e.target.value)}
+            placeholder="例）30分待ってから確認する、気を紛らわせるために散歩する…"
+            rows={2} style={textareaStyle()} />
         </Section>
       </>
     );
@@ -499,6 +764,7 @@ export default function HomePage() {
           <textarea value={thought} onChange={e => setThought(e.target.value)}
             placeholder="例）「浮気してるかも」「嫌われたかも」「何か隠してる？」…"
             rows={2} style={textareaStyle()} />
+          <ReflectionHint text={thought} />
         </Section>
         <Section num="4" icon="✅" title="実際どうだったか" hint="後から確認できた事実" delay="0.24s">
           <textarea value={actual} onChange={e => setActual(e.target.value)}
@@ -528,7 +794,7 @@ export default function HomePage() {
           <div style={{ display:"grid", gap:"8px" }}>
             {alternatives.map((a, i) => (
               <input key={i} value={a}
-                onChange={e => setAlternatives(prev => prev.map((v,j) => j===i ? e.target.value : v))}
+                onChange={e => setAlternatives(prev => prev.map((v, j) => j===i ? e.target.value : v))}
                 placeholder={`可能性${i+1}. 例）仕事が忙しかった、充電が切れてた…`}
                 style={inputStyle()} />
             ))}
@@ -565,8 +831,8 @@ export default function HomePage() {
           )}
         </header>
 
-        {/* モード選択タブ */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"8px", marginBottom:"32px" }}>
+        {/* モード選択タブ (2×2) */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px", marginBottom:"32px" }}>
           {MODE_TABS.map(tab => (
             <button key={tab.mode} onClick={() => setMode(tab.mode)} style={{
               padding:"12px 8px", borderRadius:"12px", cursor:"pointer", textAlign:"center",
@@ -582,6 +848,9 @@ export default function HomePage() {
             </button>
           ))}
         </div>
+
+        {/* NGワード警告 */}
+        {detectedNg && <NgWordBanner />}
 
         {/* フォーム */}
         {renderForm()}
