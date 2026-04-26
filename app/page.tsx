@@ -23,6 +23,7 @@ const MODE_TABS: { mode: EntryType; icon: string; label: string; desc: string }[
   { mode: "cbt",        icon: "🧠", label: "CBT思考記録",    desc: "思考を修正して行動を変える" },
   { mode: "suspicion",  icon: "🔍", label: "疑いダイアリー", desc: "不安の引き金を把握する" },
   { mode: "two_column", icon: "⚖️", label: "2カラムワーク",  desc: "事実と解釈を切り分ける" },
+  { mode: "action_log", icon: "🎯", label: "行動ログ",       desc: "行動と結果を振り返る" },
 ];
 
 const CBT_EMOTIONS = ["不安", "悲しみ", "怒り", "嫉妬", "恐れ", "罪悪感", "恥", "孤独感", "焦り", "絶望"];
@@ -298,11 +299,31 @@ function RecordCard({ record: r, index, onDelete }: { record: JournalRecord; ind
   const modeInfo = ({
     standard:   { label:"🌿 通常記録",       bg:"var(--surface2)" },
     cbt:        { label:"🧠 CBT思考記録",    bg:"rgba(100,80,180,0.1)" },
+    action_log: { label:"🎯 行動ログ",       bg:"rgba(74,138,102,0.1)" },
     suspicion:  { label:"🔍 疑いダイアリー", bg:"rgba(201,97,74,0.1)" },
     two_column: { label:"⚖️ 2カラムワーク",  bg:"rgba(77,128,104,0.1)" },
   } as Record<string, { label:string; bg:string }>)[entryType] ?? { label:"🌿 通常記録", bg:"var(--surface2)" };
 
   function renderContent() {
+    if (entryType === "action_log") {
+      return (
+        <div style={{ display:"grid", gap:"8px" }}>
+          {([
+            ["📍", "状況",       r.event],
+            ["💭", "感情",       r.emotion],
+            ["🎯", "とった行動", ed.actionTaken],
+            ["📊", "結果",       ed.resultType],
+            ["💡", "学び",       ed.learning],
+          ] as [string, string, string | null | undefined][])
+            .filter(([,, v]) => v)
+            .map(([icon, label, val]) => <FieldRow key={label} icon={icon} label={label} val={val!} />)}
+          {typeof ed.tenMinRule === "boolean" && (
+            <FieldRow icon="⏱" label="10分ルール" val={ed.tenMinRule ? "✓ 使った" : "使わなかった"} />
+          )}
+        </div>
+      );
+    }
+
     if (entryType === "cbt") {
       const emoStr = (ed.emotionTypes ?? []).map(e => `${e.name} ${e.percent}%`).join(" / ");
       return (
@@ -438,6 +459,15 @@ export default function HomePage() {
   const [cbtActionPlan,  setCbtActionPlan]  = useState("");
   const [cbtMood,        setCbtMood]        = useState(5);
 
+  // action_log
+  const [alSituation, setAlSituation] = useState("");
+  const [alEmotion,   setAlEmotion]   = useState("");
+  const [alAction,    setAlAction]    = useState("");
+  const [alTenMin,    setAlTenMin]    = useState(false);
+  const [alResult,    setAlResult]    = useState("微妙");
+  const [alLearning,  setAlLearning]  = useState("");
+  const [alMood,      setAlMood]      = useState(5);
+
   // data / ui
   const [records,   setRecords]   = useState<JournalRecord[]>([]);
   const [loading,   setLoading]   = useState(false);
@@ -513,6 +543,15 @@ export default function HomePage() {
           actionPlan: cbtActionPlan,
         },
       };
+    } else if (mode === "action_log") {
+      if (!alSituation && !alAction) {
+        showToast("⚡ 状況か行動を入力してください"); setSaving(false); return;
+      }
+      body = {
+        entry_type: "action_log", event: alSituation||null, emotion: alEmotion||null, body_state: null,
+        mood: alMood, tags: [],
+        extra_data: { actionTaken: alAction, tenMinRule: alTenMin, resultType: alResult, learning: alLearning },
+      };
     } else if (mode === "suspicion") {
       if (!situation && !thought) {
         showToast("⚡ 状況か頭に浮かんだことを入力してください"); setSaving(false); return;
@@ -546,6 +585,9 @@ export default function HomePage() {
       } else if (mode === "cbt") {
         setCbtEvent(""); setCbtAutoThought(""); setCbtEmotions([]);
         setCbtEvidence(""); setCbtAltInterp(""); setCbtActionPlan(""); setCbtMood(5);
+      } else if (mode === "action_log") {
+        setAlSituation(""); setAlEmotion(""); setAlAction("");
+        setAlTenMin(false); setAlResult("微妙"); setAlLearning(""); setAlMood(5);
       } else if (mode === "suspicion") {
         setSituation(""); setBodyReaction(""); setThought(""); setActual(""); setSuspMood(5);
       } else {
@@ -564,7 +606,7 @@ export default function HomePage() {
     location.href = "/login";
   }
 
-  const allTexts = [eventText, emotionText, bodyText, situation, bodyReaction, thought, actual, fact, interpretation, ...alternatives, cbtEvent, cbtAutoThought, cbtEvidence, cbtAltInterp, cbtActionPlan];
+  const allTexts = [eventText, emotionText, bodyText, situation, bodyReaction, thought, actual, fact, interpretation, ...alternatives, cbtEvent, cbtAutoThought, cbtEvidence, cbtAltInterp, cbtActionPlan, alSituation, alEmotion, alAction, alLearning];
   const detectedNg = detectNgWord(allTexts);
 
   function renderPattern() {
@@ -574,10 +616,13 @@ export default function HomePage() {
     const tagCount: Record<string, number> = {};
     lowRecs.forEach(r => (r.tags ?? []).forEach(t => { tagCount[t.val] = (tagCount[t.val]||0)+1; }));
     const topTags = Object.entries(tagCount).sort((a, b) => b[1]-a[1]).slice(0, 2);
-    const accDays  = records.filter(r => (r.entry_type ?? "standard") === "standard" && (r.extra_data?.accomplishments ?? []).length > 0).length;
-    const suspDays = records.filter(r => r.entry_type === "suspicion").length;
-    const twoCols  = records.filter(r => r.entry_type === "two_column").length;
-    const cbtDays  = records.filter(r => r.entry_type === "cbt").length;
+    const accDays   = records.filter(r => (r.entry_type ?? "standard") === "standard" && (r.extra_data?.accomplishments ?? []).length > 0).length;
+    const suspDays  = records.filter(r => r.entry_type === "suspicion").length;
+    const twoCols   = records.filter(r => r.entry_type === "two_column").length;
+    const cbtDays   = records.filter(r => r.entry_type === "cbt").length;
+    const actionDays = records.filter(r => r.entry_type === "action_log").length;
+    const tenMinUsed = records.filter(r => r.entry_type === "action_log" && r.extra_data?.tenMinRule === true).length;
+    const goodResults = records.filter(r => r.entry_type === "action_log" && r.extra_data?.resultType === "良かった").length;
 
     return (
       <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"14px", padding:"20px", marginBottom:"12px", boxShadow:"0 1px 4px rgba(43,34,30,0.06)" }}>
@@ -602,7 +647,7 @@ export default function HomePage() {
           ))}
         </div>
 
-        {(accDays > 0 || suspDays > 0 || twoCols > 0 || cbtDays > 0) && (
+        {(accDays > 0 || suspDays > 0 || twoCols > 0 || cbtDays > 0 || actionDays > 0) && (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(80px,1fr))", gap:"8px", marginBottom:"14px" }}>
             {accDays > 0 && (
               <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
@@ -626,6 +671,24 @@ export default function HomePage() {
               <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
                 <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>2カラムワーク</div>
                 <div style={{ fontSize:"16px", fontWeight:500, color:"var(--accent3)" }}>{twoCols}回</div>
+              </div>
+            )}
+            {actionDays > 0 && (
+              <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
+                <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>行動ログ</div>
+                <div style={{ fontSize:"16px", fontWeight:500, color:"var(--good)" }}>{actionDays}回</div>
+              </div>
+            )}
+            {tenMinUsed > 0 && (
+              <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
+                <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>10分ルール</div>
+                <div style={{ fontSize:"16px", fontWeight:500, color:"var(--good)" }}>{tenMinUsed}回</div>
+              </div>
+            )}
+            {goodResults > 0 && (
+              <div style={{ background:"var(--surface2)", borderRadius:"10px", padding:"10px 12px", textAlign:"center" }}>
+                <div style={{ fontSize:"10px", color:"var(--text-muted)", marginBottom:"2px" }}>行動が良かった</div>
+                <div style={{ fontSize:"16px", fontWeight:500, color:"var(--good)" }}>{goodResults}回</div>
               </div>
             )}
           </div>
@@ -744,6 +807,56 @@ export default function HomePage() {
       </>
     );
 
+    if (mode === "action_log") return (
+      <>
+        <div style={{ background:"rgba(74,138,102,0.06)", border:"1px solid rgba(74,138,102,0.2)", borderRadius:"12px", padding:"14px 16px", marginBottom:"24px", fontSize:"12px", color:"var(--text-muted)", lineHeight:1.8 }}>
+          行動した後の振り返りを記録しましょう。<br />
+          「とった行動」と「結果」を蓄積すると行動パターンが見えてきます。
+        </div>
+        <Section num="1" icon="📍" title="状況" hint="何が起きた？" delay="0s">
+          <textarea value={alSituation} onChange={e => setAlSituation(e.target.value)}
+            placeholder="例）パートナーから既読スルーされた、喧嘩しそうになった…"
+            rows={2} style={textareaStyle()} />
+        </Section>
+        <Section num="2" icon="💭" title="感情" hint="どう感じた？" delay="0.06s">
+          <textarea value={alEmotion} onChange={e => setAlEmotion(e.target.value)}
+            placeholder="例）不安50%、焦り30%、悲しみ20%"
+            rows={2} style={textareaStyle()} />
+          <MoodSlider mood={alMood} setMood={setAlMood} />
+        </Section>
+        <Section num="3" icon="🎯" title="とった行動" hint="実際に何をした？" delay="0.12s">
+          <textarea value={alAction} onChange={e => setAlAction(e.target.value)}
+            placeholder="例）30分待ってから連絡した、深呼吸して冷静になった…"
+            rows={2} style={textareaStyle()} />
+          <label style={{ display:"flex", alignItems:"center", gap:"10px", marginTop:"10px", cursor:"pointer", fontSize:"13px", color:"var(--text)" }}>
+            <input type="checkbox" checked={alTenMin} onChange={e => setAlTenMin(e.target.checked)}
+              style={{ width:"16px", height:"16px", accentColor:"var(--accent1)", cursor:"pointer" }} />
+            <span>⏱ 10分ルールを使った（感情が高ぶったとき10分待った）</span>
+          </label>
+        </Section>
+        <Section num="4" icon="📊" title="結果" hint="どうなった？" delay="0.18s">
+          <div style={{ display:"flex", gap:"8px" }}>
+            {(["良かった", "微妙", "悪化"] as const).map(opt => (
+              <button key={opt} onClick={() => setAlResult(opt)} style={{
+                flex:1, padding:"10px 8px", borderRadius:"10px", fontSize:"13px", cursor:"pointer",
+                border:`1px solid ${alResult===opt ? (opt==="良かった"?"var(--good)":opt==="悪化"?"var(--danger)":"var(--warn)") : "var(--border)"}`,
+                background: alResult===opt ? (opt==="良かった"?"rgba(74,138,102,0.12)":opt==="悪化"?"rgba(184,80,80,0.12)":"rgba(184,120,48,0.12)") : "var(--surface)",
+                color: alResult===opt ? (opt==="良かった"?"var(--good)":opt==="悪化"?"var(--danger)":"var(--warn)") : "var(--text-muted)",
+                fontFamily:"'Zen Kaku Gothic New',sans-serif", transition:"all 0.2s",
+              }}>
+                {opt==="良かった"?"✓ 良かった":opt==="悪化"?"↓ 悪化":"△ 微妙"}
+              </button>
+            ))}
+          </div>
+        </Section>
+        <Section num="5" icon="💡" title="学び" hint="次回に活かすことは？" delay="0.24s">
+          <textarea value={alLearning} onChange={e => setAlLearning(e.target.value)}
+            placeholder="例）10分待つと冷静になれた、すぐ連絡すると悪化した…"
+            rows={2} style={textareaStyle()} />
+        </Section>
+      </>
+    );
+
     if (mode === "suspicion") return (
       <>
         <div style={{ background:"rgba(201,97,74,0.06)", border:"1px solid rgba(201,97,74,0.2)", borderRadius:"12px", padding:"14px 16px", marginBottom:"24px", fontSize:"12px", color:"var(--text-muted)", lineHeight:1.8 }}>
@@ -831,8 +944,8 @@ export default function HomePage() {
           )}
         </header>
 
-        {/* モード選択タブ (2×2) */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px", marginBottom:"32px" }}>
+        {/* モード選択タブ (3+2) */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"8px", marginBottom:"32px" }}>
           {MODE_TABS.map(tab => (
             <button key={tab.mode} onClick={() => setMode(tab.mode)} style={{
               padding:"12px 8px", borderRadius:"12px", cursor:"pointer", textAlign:"center",

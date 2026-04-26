@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { syncToNotion } from "@/lib/notion";
 
 export async function GET() {
   const supabase = await createServerSupabaseClient();
@@ -36,11 +37,21 @@ export async function POST(req: Request) {
     body_state: body_state || null,
     mood,
     tags:       tags       ?? [],
-    entry_type: entry_type ?? 'standard',
+    entry_type: entry_type ?? "standard",
     extra_data: extra_data ?? {},
   });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Notion同期（失敗してもレスポンスには影響しない）
+  syncToNotion(
+    entry_type ?? "standard",
+    event ?? null,
+    emotion ?? null,
+    mood,
+    extra_data ?? {}
+  ).catch(err => console.error("[Notion] sync error:", err));
+
   return NextResponse.json({ ok: true });
 }
 
