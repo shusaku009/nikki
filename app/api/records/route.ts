@@ -43,14 +43,18 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Notion同期（失敗してもレスポンスには影響しない）
-  syncToNotion(
-    entry_type ?? "standard",
-    event ?? null,
-    emotion ?? null,
-    mood,
-    extra_data ?? {}
-  ).catch(err => console.error("[Notion] sync error:", err));
+  // Notion同期（awaitしてサーバーレス関数が終了する前に完了させる）
+  try {
+    await syncToNotion(
+      entry_type ?? "standard",
+      event ?? null,
+      emotion ?? null,
+      mood,
+      extra_data ?? {}
+    );
+  } catch (err) {
+    console.error("[Notion] sync error:", err);
+  }
 
   return NextResponse.json({ ok: true });
 }
